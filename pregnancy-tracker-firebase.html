@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>متابعة الحمل</title>
+<style>
+  :root{
+    --bg:#F3F6F3; --bg2:#E4ECE4; --ink:#1F2B22; --muted:#5A6B5C;
+    --accent:#3F6E54; --accent-soft:#D9E6DA; --line:#CBD9CC; --ok:#3F6E54;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141A16; --bg2:#1E2620; --ink:#E7EEE8; --muted:#9FB3A3;
+      --accent:#7FB893; --accent-soft:#273A2D; --line:#324238; --ok:#7FB893;
+      color-scheme: dark;
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Tahoma","Segoe UI",system-ui,sans-serif;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+    line-height:1.6;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 20px 60px;}
+  header{background:var(--accent);color:#fff;margin:0 -20px 28px;padding:34px 20px 26px;border-radius:0 0 22px 22px;}
+  h1{font-size:1.7rem;margin:0 0 6px;font-weight:700;}
+  .sub{color:#fff;opacity:.85;font-size:.95rem;margin:0;}
+  .section-title{font-size:1.05rem;font-weight:700;margin:30px 0 12px;}
+  .card{background:var(--bg2);border-inline-start:4px solid var(--accent);border-radius:10px;padding:22px;margin-bottom:18px;}
+  label{display:block;font-weight:600;margin-bottom:8px;font-size:.95rem;}
+  .hint{color:var(--muted);font-size:.85rem;margin:-4px 0 10px;}
+  input[type=number], input[type=text], select{
+    width:100%;padding:11px 12px;border-radius:9px;border:1px solid var(--line);
+    background:var(--bg);color:var(--ink);font-size:1rem;font-family:inherit;
+  }
+  select:disabled, .radio-row input:disabled{opacity:.55;cursor:not-allowed;}
+  .radio-row label:has(input:disabled){opacity:.55;cursor:not-allowed;}
+  .locked-note{color:var(--muted);font-size:.8rem;margin-top:6px;display:none;}
+  .locked-note.show{display:block;}
+  .radio-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .radio-row label{
+    display:flex;align-items:center;gap:6px;font-weight:400;border:1px solid var(--line);
+    padding:8px 14px;border-radius:999px;cursor:pointer;background:var(--bg);margin:0;
+  }
+  .radio-row input{accent-color:var(--accent);}
+  .consent-box{
+    border:1px solid var(--accent);background:var(--accent-soft);border-radius:12px;
+    padding:16px;margin:14px 0;font-size:.92rem;
+  }
+  .consent-box strong{display:block;margin-bottom:4px;}
+  .inline-photo{border-top:1px dashed var(--line);margin-top:16px;padding-top:16px;}
+  .cam-preview{
+    width:100%;max-height:320px;border-radius:10px;background:#000;display:none;margin-bottom:12px;
+  }
+  .cam-preview.show{display:block;}
+  .photo-result{display:none;}
+  .photo-result.show{display:block;}
+  .photo-result img{width:100%;border-radius:10px;margin-bottom:10px;}
+  .btn{
+    appearance:none;border:none;border-radius:10px;padding:12px 18px;font-size:.95rem;
+    font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-secondary{background:var(--bg);color:var(--ink);border:1px solid var(--line);}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  .req{color:var(--accent);font-size:.8rem;font-weight:700;margin-inline-start:4px;}
+  .status-ok{color:var(--ok);font-weight:600;font-size:.88rem;}
+  .summary-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:.92rem;}
+  .summary-row:last-child{border-bottom:none;}
+  .done-badge{background:var(--ok);color:#fff;border-radius:999px;padding:4px 12px;font-size:.78rem;display:inline-block;margin-top:14px;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+  .finish-bar{position:sticky;bottom:0;background:var(--bg);padding:14px 0;margin-top:10px;border-top:1px solid var(--line);}
+</style>
+<!-- Firebase: استبدلي القيم أدناه ببيانات مشروعك من Firebase Console -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCMkn1XpXLsGeO6eKNFqa64vklJwCL8XEg",
+    authDomain: "hamly-pregancy.firebaseapp.com",
+    projectId: "hamly-pregancy",
+    storageBucket: "hamly-pregancy.firebasestorage.app",
+    messagingSenderId: "411237981361",
+    appId: "1:411237981361:web:9e603e72f47eede4b25690",
+    measurementId: "G-D4R14DJWFC"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.logRegistration = async function(data){
+    try{
+      await addDoc(collection(db, "registrations"), { ...data, createdAt: serverTimestamp() });
+    }catch(e){
+      console.error("تعذّر حفظ التسجيل في Firebase:", e);
+    }
+  };
+</script>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="formScreen" class="screen active">
+    <header>
+      <h1>متابعة الحمل</h1>
+      <p class="sub">استمارة واحدة لمتابعة حالتك خلال فترة الحمل، بما فيها الصور اللازمة</p>
+    </header>
+
+    <div class="section-title">قبل البدء</div>
+    <div class="card" id="personalSection">
+      <label>صورة الوجه<span class="req">*</span></label>
+      <div class="consent-box">
+        <strong>طلب إذن الكاميرا</strong>
+        سيتم تفعيل الكاميرا الآن لالتقاط صورة لوجهك لتوثيق الزيارة. اضغطي "فتح الكاميرا" فقط إذا كنتِ موافقة.
+      </div>
+      <video id="personalCam" class="cam-preview" autoplay playsinline muted></video>
+      <div class="photo-result" id="personalResult">
+        <img id="personalImg" alt="صورة الوجه">
+        <span class="status-ok">✓ تم حفظ الصورة</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="openCamera('personal')">فتح الكاميرا والتقاط صورة الوجه</button>
+        <button class="btn btn-secondary" id="personalCapture" style="display:none;" onclick="capturePhoto('personal')">التقاط الآن</button>
+        <button class="btn btn-secondary" id="personalRetake" style="display:none;" onclick="retake('personal')">إعادة الالتقاط</button>
+      </div>
+    </div>
+
+    <div class="section-title">البيانات الأساسية</div>
+
+    <div class="card">
+      <label>في أي شهر من الحمل أنتِ؟<span class="req">*</span></label>
+      <select id="month" required onchange="checkLastMonth()">
+        <option value="">اختاري الشهر</option>
+        <option>الأول</option><option>الثاني</option><option>الثالث</option>
+        <option>الرابع</option><option>الخامس</option><option>السادس</option>
+        <option>السابع</option><option>الثامن</option><option>التاسع</option>
+      </select>
+      <div class="locked-note" id="monthLockedNote">تم تسجيل الإجابة ولا يمكن تغييرها.</div>
+
+      <div class="inline-photo" id="lastMonthNotice" style="display:none;">
+        <label>صورة البطن<span class="req">*</span></label>
+        <div class="hint">نطلب صورة للبطن لمتابعة تطور الحمل.</div>
+        <div class="consent-box">
+          <strong>طلب إذن الكاميرا</strong>
+          سيتم تفعيل الكاميرا الآن لالتقاط صورة لبطنك. اضغطي "فتح الكاميرا" فقط إذا كنتِ موافقة.
+        </div>
+        <video id="bellyCam" class="cam-preview" autoplay playsinline muted></video>
+        <div class="photo-result" id="bellyResult">
+          <img id="bellyImg" alt="صورة البطن">
+          <span class="status-ok">✓ تم حفظ الصورة</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="openCamera('belly')">فتح الكاميرا والتقاط صورة البطن</button>
+          <button class="btn btn-secondary" id="bellyCapture" style="display:none;" onclick="capturePhoto('belly')">التقاط الآن</button>
+          <button class="btn btn-secondary" id="bellyRetake" style="display:none;" onclick="retake('belly')">إعادة الالتقاط</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>هل سبق أن أنجبتِ؟<span class="req">*</span></label>
+      <div class="radio-row">
+        <label><input type="radio" name="prevBirth" value="نعم">نعم</label>
+        <label><input type="radio" name="prevBirth" value="لا">لا</label>
+      </div>
+      <div id="prevBirthCount" style="margin-top:12px;display:none;">
+        <label>كم عدد مرات الولادة السابقة؟</label>
+        <input type="number" id="birthCount" min="0" max="15">
+      </div>
+    </div>
+    <div class="card">
+      <label>هل لديك أي مضاعفات أو مشاكل صحية حالية؟</label>
+      <div class="hint">مثل سكري الحمل، ارتفاع ضغط الدم، أو أي أعراض أخرى تودين ذكرها</div>
+      <input type="text" id="complications" placeholder="اكتبي هنا أو اتركي الحقل فارغاً إن لم توجد">
+    </div>
+    <div class="card">
+      <label>هل تعانين من انتفاخ في القدمين؟<span class="req">*</span></label>
+      <div class="radio-row">
+        <label><input type="radio" name="swelling" value="نعم">نعم</label>
+        <label><input type="radio" name="swelling" value="لا">لا</label>
+        <label><input type="radio" name="swelling" value="أحياناً">أحياناً</label>
+      </div>
+      <div class="locked-note" id="swellingLockedNote">تم تسجيل الإجابة ولا يمكن تغييرها.</div>
+      <div style="margin-top:12px;">
+        <label>تعليق: كيف هو الانتفاخ معكِ؟</label>
+        <div class="hint">مثال: يزداد مساءً، في قدم واحدة فقط، يختفي بعد الراحة...</div>
+        <input type="text" id="swellingComment" placeholder="اكتبي وصفاً مختصراً هنا">
+      </div>
+
+      <div class="inline-photo" id="feetSection" style="display:none;">
+        <label>صورة القدمين<span class="req">*</span></label>
+        <div class="consent-box">
+          <strong>طلب إذن الكاميرا</strong>
+          سيتم تفعيل الكاميرا الآن لالتقاط صورة لقدميك لتوثيق حالة الانتفاخ. اضغطي "فتح الكاميرا" فقط إذا كنتِ موافقة.
+        </div>
+        <video id="feetCam" class="cam-preview" autoplay playsinline muted></video>
+        <div class="photo-result" id="feetResult">
+          <img id="feetImg" alt="صورة القدمين">
+          <span class="status-ok">✓ تم حفظ الصورة</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="openCamera('feet')">فتح الكاميرا والتقاط صورة القدمين</button>
+          <button class="btn btn-secondary" id="feetCapture" style="display:none;" onclick="capturePhoto('feet')">التقاط الآن</button>
+          <button class="btn btn-secondary" id="feetRetake" style="display:none;" onclick="retake('feet')">إعادة الالتقاط</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <label>ماذا ترتدين في قدميك عادة؟<span class="req">*</span></label>
+      <div class="radio-row">
+        <label><input type="radio" name="footwear" value="أحذية عادية">أحذية عادية</label>
+        <label><input type="radio" name="footwear" value="نعال طبية">نعال طبية</label>
+        <label><input type="radio" name="footwear" value="نعال عادية">نعال عادية</label>
+      </div>
+      <div style="margin-top:12px;">
+        <label>تعليق إضافي حول الحذاء أو الراحة</label>
+        <input type="text" id="footwearComment" placeholder="اختياري">
+      </div>
+    </div>
+
+    <div class="section-title">الملخص</div>
+    <div class="card">
+      <div id="summaryBox"></div>
+    </div>
+
+    <div class="section-title">حاسبة موعد الولادة</div>
+    <div class="card">
+      <label>تاريخ أول يوم من آخر دورة شهرية</label>
+      <div class="hint">ستحسب النتيجة بناءً على دورة منتظمة مدتها 28 يوماً (قاعدة نيجله)</div>
+      <input type="date" id="lmpDate" onchange="calcDueDate()">
+      <div id="dueDateResult" style="margin-top:14px;display:none;">
+        <div class="summary-row"><span>الأسبوع الحالي من الحمل</span><strong id="weekResult">—</strong></div>
+        <div class="summary-row"><span>التاريخ المتوقع للولادة</span><strong id="dueDateText">—</strong></div>
+      </div>
+    </div>
+
+    <div class="section-title">تجربتك مع الحمل</div>
+    <div class="card">
+      <label>شاركي تجربتك</label>
+      <div class="hint">اكتبي عن كيف معك الحمل الآن، أو إن كنت قد ولدتِ من قبل كيف كانت التجربة — قد يفيد ذلك غيرك ممن يقبلن على الحمل</div>
+      <input type="text" id="experienceComment" placeholder="اكتبي هنا (اختياري)">
+    </div>
+
+    <div class="finish-bar">
+      <button class="btn btn-primary" style="width:100%;" onclick="finish()">إنهاء وحفظ</button>
+    </div>
+  </div>
+
+  <div id="doneScreen" class="screen">
+    <div class="card" style="text-align:center;margin-top:40px;">
+      <div class="done-badge">تم الحفظ بنجاح</div>
+      <p style="margin-top:16px;">شكراً لك، تم تسجيل بياناتك بنجاح. يمكنك متابعة حالتك في الزيارة القادمة.</p>
+      <p class="hint" style="margin-top:10px;">وقت التسجيل: <span id="registeredAt"></span></p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const streams = {};
+const photos = {};
+
+document.querySelectorAll('input[name=prevBirth]').forEach(r=>{
+  r.addEventListener('change', e=>{
+    document.getElementById('prevBirthCount').style.display = e.target.value==='نعم' ? 'block' : 'none';
+    updateSummary();
+  });
+});
+document.querySelectorAll('input, select').forEach(el=>{
+  el.addEventListener('input', updateSummary);
+  el.addEventListener('change', updateSummary);
+});
+
+function checkLastMonth(){
+  const month = document.getElementById('month').value;
+  const monthsFromFive = ['الخامس','السادس','السابع','الثامن','التاسع'];
+  document.getElementById('lastMonthNotice').style.display = monthsFromFive.includes(month) ? 'block' : 'none';
+  document.getElementById('month').disabled = true;
+  document.getElementById('monthLockedNote').classList.add('show');
+  updateSummary();
+}
+function checkSwelling(){
+  const swelling = document.querySelector('input[name=swelling]:checked')?.value;
+  document.getElementById('feetSection').style.display = (swelling === 'نعم' || swelling === 'أحياناً') ? 'block' : 'none';
+  document.querySelectorAll('input[name=swelling]').forEach(r=>r.disabled = true);
+  document.getElementById('swellingLockedNote').classList.add('show');
+  updateSummary();
+}
+document.querySelectorAll('input[name=swelling]').forEach(r=>r.addEventListener('change', checkSwelling));
+
+async function openCamera(which){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    alert('متصفحك لا يدعم الوصول إلى الكاميرا، أو أن الصفحة لا تُفتح عبر رابط آمن (https). جرّبي متصفح Chrome محدّثاً.');
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: which==='personal' ? 'user' : 'environment' },
+      audio: false
+    });
+    streams[which] = stream;
+    const video = document.getElementById(which+'Cam');
+    video.srcObject = stream;
+    video.classList.add('show');
+    try{ await video.play(); }catch(playErr){ /* some browsers auto-play once metadata loads */ }
+    document.getElementById(which+'Capture').style.display = 'inline-block';
+  }catch(err){
+    let msg = 'تعذّر فتح الكاميرا. ';
+    if(err && err.name === 'NotAllowedError') msg += 'يبدو أنكِ رفضتِ إذن الكاميرا — افتحي إعدادات الموقع في المتصفح وفعّلي إذن الكاميرا ثم أعيدي المحاولة.';
+    else if(err && err.name === 'NotFoundError') msg += 'لم يتم العثور على كاميرا في هذا الجهاز.';
+    else if(err && err.name === 'NotReadableError') msg += 'الكاميرا مستخدَمة حالياً من تطبيق آخر.';
+    else msg += 'السبب: ' + (err && err.message ? err.message : err);
+    alert(msg);
+  }
+}
+
+function capturePhoto(which){
+  const video = document.getElementById(which+'Cam');
+  if(!video.videoWidth || !video.videoHeight){
+    alert('الكاميرا لم تبدأ البث بعد، انتظري ثانية وحاولي الالتقاط مجدداً.');
+    return;
+  }
+  const maxW = 700;
+  const scale = Math.min(1, maxW / video.videoWidth);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg',0.6);
+  photos[which] = dataUrl;
+
+  video.classList.remove('show');
+  if(streams[which]) streams[which].getTracks().forEach(t=>t.stop());
+
+  document.getElementById(which+'Capture').style.display='none';
+  document.getElementById(which+'Img').src = dataUrl;
+  document.getElementById(which+'Result').classList.add('show');
+  document.getElementById(which+'Retake').style.display='inline-block';
+  updateSummary();
+}
+
+function retake(which){
+  document.getElementById(which+'Result').classList.remove('show');
+  document.getElementById(which+'Retake').style.display='none';
+  delete photos[which];
+  openCamera(which);
+}
+
+function updateSummary(){
+  const month = document.getElementById('month').value || '—';
+  const prevBirth = document.querySelector('input[name=prevBirth]:checked')?.value || '—';
+  const birthCount = document.getElementById('birthCount').value || '—';
+  const complications = document.getElementById('complications').value || 'لا يوجد';
+  const swelling = document.querySelector('input[name=swelling]:checked')?.value || '—';
+  const swellingComment = document.getElementById('swellingComment').value || 'لا يوجد';
+  const footwear = document.querySelector('input[name=footwear]:checked')?.value || '—';
+  const footwearComment = document.getElementById('footwearComment').value || 'لا يوجد';
+
+  const rows = [
+    ['الصورة الشخصية', photos.personal ? 'تم الالتقاط ✓' : 'لم تُلتقط بعد'],
+    ['الشهر', month],
+    ['صورة البطن', photos.belly ? 'تم الالتقاط ✓' : 'لم تُلتقط بعد'],
+    ['ولادات سابقة', prevBirth],
+    ['عدد الولادات', birthCount],
+    ['مضاعفات', complications],
+    ['انتفاخ القدمين', swelling],
+    ['تعليق على الانتفاخ', swellingComment],
+    ['صورة القدمين', photos.feet ? 'تم الالتقاط ✓' : 'لم تُلتقط بعد'],
+    ['نوع ما ترتديه', footwear],
+    ['تعليق على الحذاء', footwearComment],
+  ];
+  document.getElementById('summaryBox').innerHTML = rows.map(r=>
+    `<div class="summary-row"><span>${r[0]}</span><strong>${r[1]}</strong></div>`
+  ).join('');
+}
+updateSummary();
+
+function calcDueDate(){
+  const val = document.getElementById('lmpDate').value;
+  if(!val){ document.getElementById('dueDateResult').style.display='none'; return; }
+  const lmp = new Date(val);
+  const today = new Date();
+  const diffDays = Math.floor((today - lmp) / 86400000);
+  const week = Math.max(0, Math.floor(diffDays/7));
+  const due = new Date(lmp.getTime() + 280*86400000);
+  document.getElementById('weekResult').textContent = week + ' أسبوع';
+  document.getElementById('dueDateText').textContent = due.toLocaleDateString('ar-TN', {year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('dueDateResult').style.display='block';
+}
+
+async function finish(){
+  const now = new Date();
+  document.getElementById('registeredAt').textContent = now.toLocaleDateString('ar-TN',{year:'numeric',month:'long',day:'numeric'}) + ' — ' + now.toLocaleTimeString('ar-TN',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('formScreen').classList.remove('active');
+  document.getElementById('doneScreen').classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+
+  if(window.logRegistration){
+    window.logRegistration({
+      date: now.toLocaleDateString('ar-TN',{year:'numeric',month:'long',day:'numeric'}),
+      time: now.toLocaleTimeString('ar-TN',{hour:'2-digit',minute:'2-digit'}),
+      month: document.getElementById('month').value || '',
+      prevBirth: document.querySelector('input[name=prevBirth]:checked')?.value || '',
+      birthCount: document.getElementById('birthCount').value || '',
+      complications: document.getElementById('complications').value || '',
+      swelling: document.querySelector('input[name=swelling]:checked')?.value || '',
+      swellingComment: document.getElementById('swellingComment').value || '',
+      footwear: document.querySelector('input[name=footwear]:checked')?.value || '',
+      footwearComment: document.getElementById('footwearComment').value || '',
+      experienceComment: document.getElementById('experienceComment').value || '',
+      personalPhoto: photos.personal || '',
+      bellyPhoto: photos.belly || '',
+      feetPhoto: photos.feet || ''
+    });
+  }
+}
+</script>
+</body>
+</html>
